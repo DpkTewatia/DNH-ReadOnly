@@ -27,6 +27,7 @@ var options = app.Services.GetRequiredService<IOptions<FileVaultOptions>>().Valu
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("FileServe");
 
 var rootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(options.RootPath));
+var contentRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(app.Environment.ContentRootPath));
 
 if (!Directory.Exists(rootPath))
 {
@@ -41,9 +42,21 @@ if (!Directory.Exists(rootPath))
     throw new DirectoryNotFoundException($"FileVault:RootPath '{rootPath}' is not accessible.");
 }
 
-var fileProvider = new PhysicalFileProvider(
-    rootPath,
-    options.IncludeHiddenFiles ? ExclusionFilters.None : ExclusionFilters.Sensitive);
+// Serving the application's own directory would expose appsettings.json, web.config
+// and the compiled assemblies. Refuse to start rather than serve the site to itself.
+if (IsSameOrInside(rootPath, contentRoot) || IsSameOrInside(contentRoot, rootPath))
+{
+    throw new InvalidOperationException(
+        $"FileVault:RootPath '{rootPath}' overlaps the application directory '{contentRoot}'. " +
+        "The served folder must be entirely outside the deployed application.");
+}
+
+var fileProvider = new VaultFileProvider(
+    new PhysicalFileProvider(
+        rootPath,
+        options.IncludeHiddenFiles ? ExclusionFilters.None : ExclusionFilters.Sensitive),
+    options,
+    rootPath);
 
 var contentTypeProvider = new FileExtensionContentTypeProvider();
 foreach (var (extension, mimeType) in options.ContentTypeMappings)
@@ -92,7 +105,13 @@ app.Use(async (context, next) =>
         path = remaining;
     }
 
-    if (!FileVaultGuard.IsServable(path.Value, options, out var reason))
+    // From a URL alone a trailing segment without an extension is more likely a folder
+    // than an extensionless file. Guessing wrong here only skips an early refusal --
+    // VaultFileProvider re-checks with the real file/folder answer before serving.
+    var value = path.Value ?? string.Empty;
+    var lastSegment = value[(value.LastIndexOf('/') + 1)..];
+
+    if (!FileVaultGuard.IsServable(value, options, !Path.HasExtension(lastSegment), out var reason))
     {
         logger.LogWarning("Refused {Method} {Path} from {RemoteIp}: {Reason}",
             context.Request.Method,
@@ -167,4 +186,18 @@ logger.LogInformation(
     options.EnableDirectoryBrowsing,
     options.ForceDownload);
 
+logger.LogInformation(
+    "Content policy: {Allowed}, {BlockedExt} blocked extensions, " +
+    "{BlockedNames} blocked name patterns, {BlockedDirs} blocked folders",
+    options.AllowedExtensions.Length > 0
+        ? $"allowlist of {options.AllowedExtensions.Length} extensions"
+        : "no extension allowlist",
+    options.BlockedExtensions.Length,
+    options.BlockedFileNames.Length,
+    options.BlockedDirectories.Length);
+
 app.Run();
+
+static bool IsSameOrInside(string candidate, string parent) =>
+    candidate.Equals(parent, StringComparison.OrdinalIgnoreCase) ||
+    candidate.StartsWith(parent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);

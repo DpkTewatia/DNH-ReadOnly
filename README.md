@@ -63,7 +63,9 @@ All settings live under the `FileVault` section of `appsettings.json`:
 | `RootPath` | *(required)* | Absolute path of the folder to serve |
 | `RequestPath` | `/files` | URL prefix. `""` serves the vault at the site root |
 | `AllowedExtensions` | `[]` | If non-empty, an allowlist — nothing else is served |
-| `BlockedExtensions` | `.config .exe .dll .ps1 .bat .cmd .pfx .key` | Never served |
+| `BlockedExtensions` | see below | Extensions never served |
+| `BlockedFileNames` | see below | File-name patterns never served, `*`/`?` wildcards |
+| `BlockedDirectories` | see below | Folders never traversed or listed |
 | `EnableDirectoryBrowsing` | `false` | Render an HTML index for folder URLs |
 | `ForceDownload` | `false` | Send `Content-Disposition: attachment` |
 | `ServeUnknownFileTypes` | `true` | Serve extensions with no known MIME type |
@@ -120,19 +122,73 @@ local copy and point `RootPath` at that.
 
 The application is read-only — anything other than `GET` and `HEAD` returns `405`.
 
-Requests are checked before any disk access ([FileVaultGuard.cs](src/FileServe/FileVaultGuard.cs)),
-and rejections return `404` rather than `403` so responses never confirm what exists
-on disk. Blocked: path traversal, backslashes and NUL in the path, alternate data
-stream syntax (`file.txt::$DATA`), reserved DOS device names (`CON`, `LPT1`, …),
-segments with trailing dots or spaces (which Windows silently strips, sidestepping
-the extension policy), and anything failing the extension allow/block lists.
+### What is never served
 
-Note that `RootPath` is served **in full**, including every subfolder. Point it at a
-folder that holds only what should be public, and set `AllowedExtensions` when the
-answer is "only PDFs".
+Three block lists apply, with defaults in
+[FileVaultOptions.cs](src/FileServe/FileVaultOptions.cs). Overriding one in
+`appsettings.json` **replaces** that list rather than adding to it, so copy the default
+and extend it.
 
-There is no authentication. To require a login, enable Windows Authentication on the
-site in IIS, or put the app behind whatever gateway you already run.
+* **`BlockedExtensions`** — server-side source and markup (`.cs`, `.vb`, `.aspx`,
+  `.ascx`, `.asax`, `.ashx`, `.asmx`, `.asp`, `.cshtml`, `.razor`, `.php`, `.jsp`, …),
+  configuration and project files (`.config`, `.csproj`, `.sln`, `.pubxml`, `.user`, …),
+  keys and certificates (`.pfx`, `.p12`, `.key`, `.pem`, `.env`, …), executables and
+  scripts (`.exe`, `.dll`, `.ps1`, `.bat`, `.sh`, …), databases (`.mdf`, `.ldf`, `.mdb`,
+  `.sqlite`, …), and backup leftovers (`.bak`, `.old`, `.orig`, `.swp`, …).
+* **`BlockedFileNames`** — names whose extension is otherwise legitimate:
+  `appsettings*.json`, `secrets*.json`, `web.config*`, `connectionstrings*`, `.env*`,
+  `.git*`, `.htpasswd`, `id_rsa*`, and similar.
+* **`BlockedDirectories`** — `bin`, `obj`, `App_Data`, `App_Code`, `.git`, `.svn`,
+  `.vs`, `node_modules` and friends, refused anywhere in the path.
+
+Every dot-separated suffix is checked, not just the last one, so `web.config.bak` is
+refused for containing `.config` even though it ends in `.bak`.
+
+`AllowedExtensions` is stricter than any block list and is the right control when the
+answer is "only PDFs and images" — set it and everything else is refused by default.
+
+### How it is enforced
+
+The policy lives in [FileVaultGuard.cs](src/FileServe/FileVaultGuard.cs) and is applied
+in two places. Request middleware refuses early, so nothing touches the disk and the
+refusal is logged with its reason. [VaultFileProvider.cs](src/FileServe/VaultFileProvider.cs)
+then re-applies it inside the file provider, which is what the static file handler, the
+default-file handler and the directory browser all read through. That second layer
+matters for three reasons:
+
+* **Directory listings** omit blocked entries entirely. Filtering only in middleware
+  would still let a listing advertise `appsettings.json` by name.
+* **Extensionless files** such as `id_rsa` are judged correctly, because the provider
+  knows from `IsDirectory` whether a name is a file or a folder. A URL alone cannot say.
+* **8.3 short names** are neutralised. NTFS keeps a legacy alias for most files, and
+  Windows opens either spelling — a request for `APPSET~1.JSO` reads `appsettings.json`
+  while presenting an extension (`.JSO`) that matches no rule. The provider checks the
+  resolved on-disk path as well as the URL, and both must pass.
+
+Consider disabling short-name generation on the volume as well:
+`fsutil 8dot3name set D: 1` (this stops new ones; existing aliases persist).
+
+Refusals return `404`, not `403`, so a response never confirms what exists on disk.
+Also refused: path traversal, backslashes and NUL in the path, alternate data stream
+syntax (`file.txt::$DATA`), reserved DOS device names (`CON`, `LPT1`, …), and segments
+with trailing dots or spaces — Windows strips those silently, so `web.config.` would
+otherwise reach disk as `web.config`.
+
+Turning on `IncludeHiddenFiles` does not undo any of this: `.env` and `.git` are on the
+block lists in their own right, not merely hidden.
+
+### What is still your call
+
+`RootPath` is served **in full**, every subfolder included. The block lists stop known
+categories of sensitive file; they cannot know that `client-list.xlsx` is confidential.
+Point `RootPath` at a folder that holds only what should be public.
+
+The application refuses to start if `RootPath` overlaps its own directory, so it can
+never serve its own `appsettings.json`, `web.config` or assemblies.
+
+There is no authentication — anyone who can reach the URL gets the file. To require a
+login, enable Windows Authentication on the site in IIS, or put the app behind whatever
+gateway you already run.
 
 ## Troubleshooting
 
@@ -165,7 +221,8 @@ Uses `appsettings.Development.json`, which serves `C:\Temp\SharedFiles` at
 src/FileServe/
   Program.cs             pipeline: health -> guard -> static files -> 404
   FileVaultOptions.cs    configuration model and startup validation
-  FileVaultGuard.cs      path and extension checks, ahead of disk access
+  FileVaultGuard.cs      the content policy: paths, folders, names, extensions
+  VaultFileProvider.cs   applies the policy to every read, including listings
   web.config             IIS handler, request filtering, error pass-through
 deploy/
   Install-FileServe.ps1  publish + create site/pool + permissions
