@@ -10,8 +10,8 @@
     .\Install-FileServe.ps1 -VaultPath D:\SharedFiles -Hostname files.contoso.com
 
 .EXAMPLE
-    # Serve at the site root instead of under /files
-    .\Install-FileServe.ps1 -VaultPath D:\SharedFiles -RequestPath ''
+    # Serve under a /files prefix instead of at the site root
+    .\Install-FileServe.ps1 -VaultPath D:\SharedFiles -RequestPath '/files'
 #>
 #Requires -RunAsAdministrator
 [CmdletBinding()]

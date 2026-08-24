@@ -64,7 +64,7 @@ All settings live under the `FileVault` section of `appsettings.json`:
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `RootPath` | *(required)* | Absolute path of the folder to serve |
-| `RequestPath` | `/files` | URL prefix. `""` serves the vault at the site root |
+| `RequestPath` | `""` | Empty serves at the site root; `/files` adds a URL prefix |
 | `AllowedExtensions` | `[]` | If non-empty, an allowlist — nothing else is served |
 | `BlockedExtensions` | see below | Extensions never served |
 | `BlockedFileNames` | see below | File-name patterns never served, `*`/`?` wildcards |
@@ -84,7 +84,7 @@ Backslashes are escape characters in JSON, so Windows paths must be doubled:
 {
   "FileVault": {
     "RootPath": "D:\\SharedFiles",
-    "RequestPath": "/files",
+    "RequestPath": "",
     "AllowedExtensions": [ ".pdf", ".csv", ".png" ]
   }
 }
@@ -99,13 +99,18 @@ separator — as an environment variable in `web.config`:
 <environmentVariable name="FileVault__RootPath" value="D:\SharedFiles" />
 ```
 
-### Serving at the site root
+### Serving under a prefix
 
-Set `RequestPath` to an empty string and files answer directly under the domain:
+By default files answer directly under the domain. Set `RequestPath` to carve out a
+prefix instead, leaving the rest of the site free for other content:
 
 ```
-https://files.contoso.com/reports/2026/q1.csv  ->  D:\SharedFiles\reports\2026\q1.csv
+"RequestPath": ""        https://files.contoso.com/reports/2026/q1.csv
+"RequestPath": "/files"  https://files.contoso.com/files/reports/2026/q1.csv
 ```
+
+Both map to `D:\SharedFiles\reports\2026\q1.csv`. `HealthPath` stays reserved either
+way, so `/healthz` is never treated as a file name even when serving at the root.
 
 ## Permissions
 
@@ -216,7 +221,7 @@ dotnet run --project src\FileServe
 ```
 
 Uses `appsettings.Development.json`, which serves `C:\Temp\SharedFiles` at
-<http://localhost:5080/files> with directory browsing on.
+<http://localhost:5080> with directory browsing on.
 
 ## Layout
 
