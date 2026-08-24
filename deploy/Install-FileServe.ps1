@@ -21,7 +21,7 @@ param(
     [string]$VaultPath,
 
     # URL prefix. '/files' -> https://host/files/report.pdf. '' -> https://host/report.pdf
-    [string]$RequestPath = '/files',
+    [string]$RequestPath = '',
 
     [string]$SiteName = 'FileServe',
     [string]$AppPoolName = 'FileServe',

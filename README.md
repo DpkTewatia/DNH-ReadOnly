@@ -4,12 +4,15 @@ An ASP.NET Core application for IIS that serves files from a folder **outside** 
 application directory.
 
 ```
-GET https://files.contoso.com/files/reports/2026/q1.csv
-                              └── RequestPath      └── path inside the vault
+GET https://files.contoso.com/reports/2026/q1.csv
+                             └── path inside the vault
 
                     reads  D:\SharedFiles\reports\2026\q1.csv
                            └── FileVault:RootPath
 ```
+
+Files answer directly under the domain. Set `RequestPath` to move them under a prefix
+instead — `/files` gives `https://files.contoso.com/files/reports/2026/q1.csv`.
 
 The application is deployed to `C:\inetpub\FileServe`; the files it serves live
 somewhere else entirely and are never copied into the site.
@@ -39,7 +42,7 @@ Verify:
 
 ```powershell
 curl http://files.contoso.com/healthz
-curl http://files.contoso.com/files/some-file.pdf
+curl http://files.contoso.com/some-file.pdf
 ```
 
 `/healthz` echoes back the resolved root path, which is the fastest way to confirm
