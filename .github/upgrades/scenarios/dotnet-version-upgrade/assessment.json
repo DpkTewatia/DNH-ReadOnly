@@ -1,0 +1,146 @@
+{
+  "settings": {
+    "components": {
+      "code": true,
+      "binaries": false
+    },
+    "targetId": "net9.0",
+    "targetDisplayName": ".NETCoreApp,Version=v9.0"
+  },
+  "analysisStartTime": "2026-08-26T19:25:42.5181058Z",
+  "analysisEndTime": "2026-08-26T19:25:42.7432951Z",
+  "privacyModeHelpUrl": "https://go.microsoft.com/fwlink/?linkid=2270980",
+  "stats": {
+    "summary": {
+      "projects": 1,
+      "issues": 2,
+      "incidents": 2,
+      "effort": 2
+    },
+    "charts": {
+      "severity": {
+        "Mandatory": 1,
+        "Optional": 0,
+        "Potential": 1,
+        "Information": 0
+      },
+      "category": {
+        "Project": 1,
+        "Api": 1
+      }
+    }
+  },
+  "projects": [
+    {
+      "path": "src\\FileServe\\FileServe.csproj",
+      "startingProject": true,
+      "issues": 2,
+      "storyPoints": 2,
+      "properties": {
+        "appName": "FileServe",
+        "projectKind": "AspNetCore",
+        "frameworks": [
+          "net8.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "isTestProject": false,
+        "numberOfFiles": 8,
+        "numberOfCodeFiles": 4,
+        "linesTotal": 756,
+        "linesOfCode": 640,
+        "totalApiScanned": 554,
+        "minLinesOfCodeToChange": 1,
+        "maxLinesOfCodeToChange": 1
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "b83c1ac5-0342-4c3b-939c-57cf9f8fc103",
+          "ruleId": "Project.0002",
+          "projectPath": "src\\FileServe\\FileServe.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net8.0\nRecommended target framework: net9.0",
+              "protected": "Current target framework: net8.0\nRecommended target framework: net9.0"
+            },
+            "kind": "File",
+            "path": "src\\FileServe\\FileServe.csproj",
+            "snippet": "Current target framework: net8.0\nRecommended target framework: net9.0",
+            "protectedSnippet": "Current target framework: net8.0\nRecommended target framework: net9.0",
+            "properties": {
+              "CurrentTargetFramework": "net8.0",
+              "RecommendedTargetFramework": "net9.0"
+            }
+          }
+        },
+        {
+          "incidentId": "ebc1ea8e-a838-49f7-a50b-5497f8ebd2e9",
+          "ruleId": "Api.0003",
+          "description": "Breaking change: Forwarded Headers Middleware ignores X-Forwarded-* headers from unknown proxies ",
+          "projectPath": "src\\FileServe\\FileServe.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "app.UseForwardedHeaders();",
+              "protected": "M:Microsoft.AspNetCore.Builder.ForwardedHeadersExtensions.UseForwardedHeaders(Microsoft.AspNetCore.Builder.IApplicationBuilder)"
+            },
+            "kind": "File",
+            "path": "src\\FileServe\\Program.cs",
+            "snippet": "app.UseForwardedHeaders();",
+            "protectedSnippet": "M:Microsoft.AspNetCore.Builder.ForwardedHeadersExtensions.UseForwardedHeaders(Microsoft.AspNetCore.Builder.IApplicationBuilder)",
+            "label": "M:Microsoft.AspNetCore.Builder.ForwardedHeadersExtensions.UseForwardedHeaders(Microsoft.AspNetCore.Builder.IApplicationBuilder)",
+            "properties": {
+              "CharCount": "7496"
+            },
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/aspnet-core/8.0/forwarded-headers-unknown-proxies.md",
+                "isCustom": false
+              }
+            ],
+            "line": 68,
+            "column": 0
+          }
+        }
+      ],
+      "features": []
+    }
+  ],
+  "rules": {
+    "Project.0002": {
+      "id": "Project.0002",
+      "isFeature": false,
+      "description": "Project\u0027s target framework(s) needs to be changed to the new target framework that you selected for this upgrade.\n\nDuring upgrade target framework will be adjusted to corresponding platform when applicable. In some cases project would result in multiple target frameworks after the upgrade if it was using features that now have their own platforms in modern .NET frameworks (windows, iOS, Android etc).",
+      "label": "Project\u0027s target framework(s) needs to be changed",
+      "severity": "Mandatory",
+      "effort": 1,
+      "links": [
+        {
+          "title": "Overview of porting from .NET Framework to .NET",
+          "url": "https://go.microsoft.com/fwlink/?linkid=2265227",
+          "isCustom": false
+        },
+        {
+          "title": ".NET project SDKs",
+          "url": "https://go.microsoft.com/fwlink/?linkid=2265226",
+          "isCustom": false
+        }
+      ]
+    },
+    "Api.0003": {
+      "id": "Api.0003",
+      "isFeature": false,
+      "description": "API has a behavioral change in selected .NET version: code and binaries may behave differently at runtime without needing recompilation, but the new behavior might be undesirable and require updates.",
+      "label": "Behavioral change in selected .NET version",
+      "severity": "Potential",
+      "effort": 1
+    }
+  }
+}
