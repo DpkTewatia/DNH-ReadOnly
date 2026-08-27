@@ -20,10 +20,10 @@ somewhere else entirely and are never copied into the site.
 ## Requirements
 
 * Windows Server with the IIS role installed
-* **.NET 8 Hosting Bundle** on the server — not just the runtime. The Hosting Bundle
+* **.NET 9 Hosting Bundle** on the server — not just the runtime. The Hosting Bundle
   is what registers `AspNetCoreModuleV2` with IIS.
-  <https://dotnet.microsoft.com/download/dotnet/8.0> → *Hosting Bundle*
-* .NET 8 SDK, if you publish on the server rather than copying a build across
+  <https://dotnet.microsoft.com/download/dotnet/9.0> → *Hosting Bundle*
+* .NET 9 SDK, if you publish on the server rather than copying a build across
 
 ## Deploy
 
@@ -204,7 +204,7 @@ gateway you already run.
 | --- | --- |
 | **500.19** | `web.config` unreadable, or the Hosting Bundle is not installed |
 | **500.30** | App failed to start — usually `RootPath` missing or not readable |
-| **502.5** | Worker process crashed, or the installed runtime is not .NET 8 |
+| **502.5** | Worker process crashed, or the installed runtime is not .NET 9 |
 | **404.11** | A file name contains `%`; set `allowDoubleEscaping="true"` in `web.config` |
 | **404 on every file** | `RootPath` wrong, or the app pool identity lacks access |
 | **404 on one folder** | IIS hidden segments — `web.config` already unblocks `bin`/`App_Data` |

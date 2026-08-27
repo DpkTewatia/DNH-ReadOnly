@@ -53,8 +53,8 @@ if (-not (Test-Path -LiteralPath $VaultPath)) {
 if (-not (Get-WebGlobalModule -Name 'AspNetCoreModuleV2' -ErrorAction SilentlyContinue)) {
     throw @"
 The ASP.NET Core Module (AspNetCoreModuleV2) is not registered with IIS.
-Install the .NET 8 Hosting Bundle, then re-run this script:
-  https://dotnet.microsoft.com/download/dotnet/8.0 -> 'Hosting Bundle'
+Install the .NET 9 Hosting Bundle, then re-run this script:
+  https://dotnet.microsoft.com/download/dotnet/9.0 -> 'Hosting Bundle'
 Restart IIS afterwards with: net stop was /y; net start w3svc
 "@
 }
