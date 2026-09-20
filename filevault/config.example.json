@@ -1,0 +1,24 @@
+{
+  "//": "Every key matches a field of VaultConfig in app/config.py. Keys starting with // are ignored, the way the appsettings.json comments were. Anything left out keeps its default; environment variables (FILEVAULT_ROOT_PATH, ...) override what is here.",
+
+  "root_path": "/data",
+  "request_path": "/files",
+
+  "//allowed_extensions": "While this is non-empty it is the whole policy: nothing outside it is served, and the block lists never come into play.",
+  "allowed_extensions": [
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".avif", ".tif", ".tiff",
+    ".txt"
+  ],
+
+  "//content_type_mappings": "serve_unknown_file_types is off, so every allowed extension needs a type here or in Python's built-in table, or it is refused rather than served.",
+  "content_type_mappings": {
+    ".txt": "text/plain; charset=utf-8"
+  },
+
+  "serve_unknown_file_types": false,
+  "enable_directory_browsing": true,
+  "force_download": false,
+  "include_hidden_files": false,
+  "cache_max_age_seconds": 3600,
+  "health_path": "/healthz"
+}

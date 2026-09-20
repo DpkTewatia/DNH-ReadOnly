@@ -1,0 +1,30 @@
+services:
+  filevault:
+    build: .
+    image: filevault:latest
+    container_name: filevault
+    restart: unless-stopped
+    ports:
+      # host:container -- change the host port if 8080 is taken.
+      - "8080:8080"
+    volumes:
+      # Point the left-hand side at the folder holding your images and .txt
+      # files. ":ro" means the container cannot modify it even if it tried.
+      - ./files:/data:ro
+    environment:
+      # Every field of VaultConfig can be set this way: FILEVAULT_ + the field
+      # name in upper case. Lists are comma-separated, maps are JSON.
+      FILEVAULT_ROOT_PATH: /data
+      FILEVAULT_REQUEST_PATH: /files
+      FILEVAULT_ALLOWED_EXTENSIONS: ".png,.jpg,.jpeg,.gif,.webp,.bmp,.ico,.avif,.tif,.tiff,.txt"
+      FILEVAULT_ENABLE_DIRECTORY_BROWSING: "true"
+      FILEVAULT_CACHE_MAX_AGE_SECONDS: "3600"
+      # "true" makes browsers download files instead of rendering them inline.
+      FILEVAULT_FORCE_DOWNLOAD: "false"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

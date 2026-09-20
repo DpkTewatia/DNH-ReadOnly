@@ -4,3 +4,7 @@ obj/
 .vs/
 publish/
 logs/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
