@@ -72,6 +72,7 @@ are comma-separated, maps are JSON, booleans are `true`/`false`.
 | `force_download` | `false` | `true` sends `Content-Disposition: attachment`. |
 | `cache_max_age_seconds` | `0` | `0` sends `no-cache` instead. |
 | `serve_unknown_file_types` | `false` | Off, an extension with no known type is refused rather than guessed. |
+| `case_insensitive` | `true` | A request whose casing differs from the name on disk still finds the file. |
 | `include_hidden_files` | `false` | Dotfiles stay invisible; `.env` and friends are blocked by name regardless. |
 | `health_path` | `/healthz` | Reserved — a file of this name can never shadow it. |
 
@@ -83,6 +84,42 @@ FILEVAULT_ALLOWED_EXTENSIONS=".png,.jpg,.txt,.pdf"
 `.svg` is deliberately not in the sample allowlist: an SVG can contain script,
 and serving one inline runs that script on this origin. Add it only behind a
 `Content-Security-Policy` that neuters it, or with `force_download` on.
+
+## Casing
+
+The media this serves came off NTFS, where case never mattered, so links written
+years ago point at whatever spelling the author typed. On a case-sensitive Linux
+filesystem those paths do not exist as written, and every one of them would 404.
+
+So a request is matched against the names on disk ignoring case:
+
+```
+on disk   /UploadFile/2012/Logo.PNG
+served    /UploadFile/2012/Logo.PNG     exact spelling, one stat
+          /uploadfile/2012/logo.png     all lower
+          /UPLOADFILE/2012/LOGO.PNG     all upper
+          /Files/... with request_path /files
+```
+
+The exact spelling is tried first and costs a single stat, so correctly-cased
+traffic pays nothing. Only a miss walks the path segment by segment, reading
+each directory once and caching the folded index for 60 seconds — worth knowing
+if the vault sits on a slow filesystem, since the first wrongly-cased request
+into a large folder reads that whole folder.
+
+Two things it deliberately does not do:
+
+* **No redirect to the canonical spelling.** A 301 would break the callers that
+  do not follow redirects, which is a large share of the hotlinking that this
+  content attracts. The file is served under the URL that was asked for.
+* **No way past the policy.** The block lists and the allowlist were always
+  case-insensitive, and the policy is applied again to the resolved path, so
+  `/WEB.CONFIG` is refused exactly like `/web.config`. When two names differ
+  only by case, an exactly-spelled request always wins, and an ambiguous one
+  resolves the same way every time rather than by filesystem order.
+
+Set `case_insensitive` to `false` to turn all of this off and serve only exact
+spellings.
 
 ## What the server refuses
 

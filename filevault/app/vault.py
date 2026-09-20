@@ -6,11 +6,21 @@ import html
 import mimetypes
 import os
 import posixpath
+import time
+from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from . import guard
 from .config import VaultConfig
+
+# How long a folded directory index is trusted, and how many are kept. The
+# vault is read-only from this process and changes rarely, so a short TTL costs
+# nothing and keeps a renamed file from being invisible for long. The cap is
+# there because the index only ever holds directories someone asked for with
+# the wrong case.
+_INDEX_TTL_SECONDS = 60.0
+_INDEX_MAX_DIRS = 256
 
 # Built-in table only, with the system's mime.types files deliberately not read:
 # macOS ships one that types ".xyz" as chemical/x-xyz and the slim image ships
@@ -39,6 +49,9 @@ class Vault:
         # this, so if the root itself is a symlink the comparison still holds.
         self.root = os.path.realpath(config.root_path)
 
+        # directory -> (cached_at, {lowercased name: name on disk})
+        self._folded: "OrderedDict[str, Tuple[float, Dict[str, str]]]" = OrderedDict()
+
     def resolve(self, sub_path: str) -> Resolved:
         """Resolve a path relative to the vault root, applying the policy twice."""
         # Pass one, on the spelling in the URL. From a URL alone a trailing
@@ -53,7 +66,13 @@ class Vault:
             return Resolved("refused", reason=reason)
 
         segments = [s for s in sub_path.split("/") if s]
-        candidate = os.path.join(self.root, *segments) if segments else self.root
+
+        candidate = self.locate(segments)
+        if candidate is None:
+            # Missing paths fall through as an ordinary 404 rather than a logged
+            # refusal: there is nothing to refuse.
+            return Resolved("missing")
+
         real = os.path.realpath(candidate)
 
         # A symlink inside the vault pointing outside it resolves to a path that
@@ -67,8 +86,8 @@ class Vault:
         elif os.path.isfile(real):
             kind = "file"
         else:
-            # Missing paths fall through as an ordinary 404 rather than a logged
-            # refusal: there is nothing to refuse.
+            # Raced with a delete between locating it and stat-ing it, or the
+            # name is a broken symlink.
             return Resolved("missing")
 
         # Pass two, on the real path, with the real file-or-folder answer. This
@@ -82,6 +101,91 @@ class Vault:
             return Resolved("refused", reason=reason)
 
         return Resolved(kind, path=real)
+
+    # ── locating a path, allowing for the case the caller used ───────────────
+
+    def locate(self, segments: List[str]) -> Optional[str]:
+        """The path on disk for these segments, or None if nothing matches.
+
+        The exact spelling is tried first and costs one stat. Only when that
+        misses does this walk the path segment by segment looking for a name
+        that differs from the request by case alone.
+
+        This matters because the vault came off NTFS, which is case-insensitive:
+        every old URL pointing at "/UploadFile/Logo.PNG" has to keep working
+        when the file on disk is "uploadfile/logo.png". Serving it is the whole
+        point -- a 301 to the canonical spelling would break just as many
+        callers as it fixed, since plenty of them do not follow redirects.
+        """
+        exact = os.path.join(self.root, *segments) if segments else self.root
+        if self._exists(exact):
+            return exact
+
+        if not self.config.case_insensitive or not segments:
+            return None
+
+        current = self.root
+        for segment in segments:
+            direct = os.path.join(current, segment)
+            if self._exists(direct):
+                current = direct
+                continue
+
+            actual = self.find_folded(current, segment)
+            if actual is None:
+                return None
+
+            current = os.path.join(current, actual)
+
+        return current
+
+    def find_folded(self, directory: str, name: str) -> Optional[str]:
+        """The real name in `directory` that equals `name` ignoring case."""
+        return self._folded_index(directory).get(name.lower())
+
+    def _folded_index(self, directory: str) -> Dict[str, str]:
+        now = time.monotonic()
+        cached = self._folded.get(directory)
+
+        if cached is not None and now - cached[0] < _INDEX_TTL_SECONDS:
+            self._folded.move_to_end(directory)
+            return cached[1]
+
+        index: Dict[str, str] = {}
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    key = entry.name.lower()
+                    current = index.get(key)
+                    # NTFS will not normally hold two names differing only by
+                    # case, but it can. Take the first in sort order rather than
+                    # whatever the filesystem happened to hand back, so the same
+                    # request does not resolve to different files on different
+                    # days. An exactly-cased request never reaches this, because
+                    # locate() stats the exact spelling first.
+                    if current is None or entry.name < current:
+                        index[key] = entry.name
+        except OSError:
+            # Unreadable directory: treat as no match rather than an error, so
+            # the request 404s the same way a missing one does.
+            index = {}
+
+        self._folded[directory] = (now, index)
+        self._folded.move_to_end(directory)
+
+        while len(self._folded) > _INDEX_MAX_DIRS:
+            self._folded.popitem(last=False)
+
+        return index
+
+    def _exists(self, path: str) -> bool:
+        """Indirection so a test can emulate a case-sensitive filesystem.
+
+        macOS is case-insensitive, so there the exact-spelling stat succeeds for
+        any casing and the fallback below never runs. Tests override this to
+        make the developer machine behave like the Linux deploy host.
+        """
+        return os.path.lexists(path)
 
     def content_type(self, path: str) -> Optional[str]:
         """The type to send, or None when nothing sensible is known."""

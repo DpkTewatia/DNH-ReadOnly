@@ -15,6 +15,9 @@
     ".txt": "text/plain; charset=utf-8"
   },
 
+  "//case_insensitive": "The vault came off NTFS, where case never mattered. With this on, a request whose spelling differs only by case still finds the file instead of 404ing.",
+  "case_insensitive": true,
+
   "serve_unknown_file_types": false,
   "enable_directory_browsing": true,
   "force_download": false,

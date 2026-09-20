@@ -43,9 +43,15 @@ def create_app(config: Optional[VaultConfig] = None) -> Starlette:
         sub_path = url_path
 
         if cfg.request_path:
-            if not (url_path == cfg.request_path or url_path.startswith(cfg.request_path + "/")):
+            # Matched ignoring case for the same reason paths are: a link written
+            # as /Files/... should reach a vault mounted at /files.
+            prefix = cfg.request_path.lower()
+            lowered = url_path.lower()
+
+            if not (lowered == prefix or lowered.startswith(prefix + "/")):
                 # Outside the prefix entirely: nothing here claims that URL.
                 return _not_found(request)
+
             sub_path = url_path[len(cfg.request_path):] or "/"
 
         resolved = vault.resolve(sub_path)

@@ -120,6 +120,13 @@ class VaultConfig:
     #: Extra or overriding type mappings, e.g. {".log": "text/plain"}.
     content_type_mappings: Dict[str, str] = field(default_factory=dict)
 
+    #: Match a request against the names on disk ignoring case when the exact
+    #: spelling is not there. The vault came off NTFS, which is case-insensitive,
+    #: so old links point at spellings the Linux filesystem does not have; without
+    #: this they 404. Costs one extra stat per segment on a miss, and a cached
+    #: directory index the first time a folder is reached by the wrong case.
+    case_insensitive: bool = True
+
     #: Liveness endpoint. Reserved, so a file of this name can never shadow it.
     health_path: str = "/healthz"
 
