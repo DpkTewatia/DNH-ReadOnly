@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+.DS_Store
+**/.DS_Store
+
+# The served content is mounted at run time, never baked into the image.
+files/
+
+docker-compose.yml
+README.md

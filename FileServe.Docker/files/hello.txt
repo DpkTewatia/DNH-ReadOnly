@@ -1,0 +1,5 @@
+FileServe vault
+===============
+
+This file is served from the folder mounted at /data.
+Replace everything in ./files with your own images and .txt files.
