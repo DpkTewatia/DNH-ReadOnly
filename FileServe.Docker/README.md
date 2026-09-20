@@ -10,6 +10,13 @@ The policy code (`FileVaultGuard`, `VaultFileProvider`, `FileVaultOptions`) is t
 only `Program.cs` and the configuration differ, dropping the IIS pieces and defaulting
 to a `/data` mount point.
 
+This folder is also what CI deploys: the Jenkins pipeline for
+**oldmedia.c-sharpcorner.com** (`jenkins-pipelines/ci/oldmedia.c-sharpcorner.com`)
+builds this project with its own Dockerfile, mounts the host's media folder at
+`/vault` instead of `/data`, and replaces `appsettings.json` with the config that
+pipeline writes. Keep that in mind when changing the settings below — the
+deployment does not read them.
+
 ## Quick start
 
 ```bash
